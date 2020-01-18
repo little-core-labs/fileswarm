@@ -20,6 +20,16 @@ const ram = require('random-access-memory')
 const SECRET_BYTES = 32
 
 /**
+ * Seed file at `pathspec` where `pathspec` can be a local file path or a
+ * HTTP URL. The underlying [hypercore][hypercore] `storage` must be
+ * specified as the enciphered file at `pathspec` is stored there and
+ * replicated in the [network swarm][hyperswarm]. If a shared secret is
+ * given then the data stored in the underlying feed is encrypted. Readers
+ * must be given access to the shared secret as well as a
+ * [random-access-storage][ras] instance containing the nonces created by
+ * the seeder. When indexing and seeding is complete, `callback()` will be
+ * called. `callback(err)` is also called when an error occurs.
+ *
  * @public
  * @param {String} pathspec
  * @param {Function<RandomAccessStorage>|String} storage
@@ -85,6 +95,10 @@ function seed(pathspec, storage, opts, callback) {
   return Object.defineProperties(source, Object.getOwnPropertyDescriptors({
     nonces,
     secret,
+
+    get pathspec() {
+      return pathspec
+    },
 
     get swarm() {
       return swarm
