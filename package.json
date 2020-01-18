@@ -1,0 +1,47 @@
+{
+  "name": "fileswarm",
+  "version": "0.0.0",
+  "description": "Share a file securely over a p2p network.",
+  "main": "index.js",
+  "scripts": {
+    "test": "tap test.js"
+  },
+  "keywords": [
+    "file",
+    "swarm",
+    "share",
+    "file",
+    "p2p",
+    "network"
+  ],
+  "author": "Joseph Werle <joseph.werle@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "debug": "^4.1.1",
+    "hypercore": "^8.4.1",
+    "hypercore-indexed-file": "^0.1.3",
+    "hypercore-xsalsa20-onwrite-hook": "^1.0.2",
+    "hyperswarm": "^2.4.0",
+    "hyperswarm-web": "^1.0.1",
+    "is-browser": "^2.1.0",
+    "length-prefixed-message": "^3.0.4",
+    "protocol-buffers-encodings": "^1.1.0",
+    "pump": "^3.0.0",
+    "random-access-file": "^2.1.3",
+    "random-access-storage-from": "^0.1.1"
+  },
+  "devDependencies": {
+    "collect-stream": "^1.2.1",
+    "protocol-buffers": "^4.1.0",
+    "random-access-memory": "^3.1.1",
+    "tap": "^14.10.6"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/little-core-labs/fileswarm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/little-core-labs/fileswarm/issues"
+  },
+  "homepage": "https://github.com/little-core-labs/fileswarm#readme"
+}
