@@ -11,7 +11,6 @@ const hook = require('hypercore-xsalsa20-onwrite-hook')
 const from = require('random-access-storage-from')
 const file = require('hypercore-indexed-file')
 const lpm = require('length-prefixed-message')
-const raf = require('random-access-file')
 const ram = require('random-access-memory')
 
 /**
@@ -315,7 +314,7 @@ function download(storage, opts, callback) {
   function createStorage(filename) {
     if ('data' === filename) {
       if ('string' === typeof storage) {
-        return raf(storage, { truncate: opts.truncate })
+        return from.providers.file(storage, { truncate: opts.truncate })
       } else {
         return from(storage)
       }
