@@ -38,7 +38,7 @@ const seed = fileswarm.seed(src, ram, { secret }, (err) => {
 
 ## API
 
-### `fileswarm.seed(pathspec, storage[, opts[, callback])`
+### `feed = fileswarm.seed(pathspec, storage[, opts[, callback])`
 
 Seed file at `pathspec` where `pathspec` can be a local file path or a
 HTTP URL. The underlying [hypercore][hypercore] `storage` must be
@@ -75,7 +75,29 @@ function onseed(err) {
 }
 ```
 
-### `fileswarm.download(storage[, opts[, callback]])`
+### `feed = fileswarm.download(storage[, opts[, callback]])`
+
+Download a seeded feed into `sstorage` where `opts.key` is the
+[hypercore][hypercore] public key and optionally `opts.secret` and
+`opts.nonces` should be specified if the data in the feed is encrypted
+when it was seeded.
+
+```js
+const fileswarm = require('fileswarm')
+const raf = require('random-access-file'
+
+const secret = fs.readFileSync('./humans.txt.key') // (see above) could be from anywhere
+const nonces = raf('./humans.txt.nonces') // (see above) could be from anywhere
+const key = loadKey() // comes from anywhere, but is the same as above
+
+const feed = fileswarm.download('./humans.txt', { key, secret, nonces }, ondownload)
+
+function ondownload() {
+}
+
+```
+
+### `feed = fileswarm.share(storage[, opts])`
 
 > TODO
 

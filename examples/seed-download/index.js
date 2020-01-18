@@ -1,4 +1,4 @@
-const fileswarm = require('./')
+const fileswarm = require('../..')
 const crypto = require('crypto')
 const ram = require('random-access-memory')
 const fs = require('fs')
@@ -7,8 +7,8 @@ const nonces = ram()
 const secret = crypto.randomBytes(fileswarm.SECRET_BYTES)
 const origin = fileswarm.seed(__filename, ram, { nonces, secret }, onseed)
 
-const authFile = './example.copy.js'
-const spyFile ='./example.spied.js'
+const authFile = './copy.js'
+const spyFile ='./spied.js'
 
 let missing = 2
 let auth = null

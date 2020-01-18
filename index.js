@@ -211,6 +211,62 @@ function seed(pathspec, storage, opts, callback) {
   }
 }
 
+function share(storage, opts) {
+  const { id = crypto.randomBytes(32) } = opts
+  const swarm = hyperswarm()
+  const feed = hypercore(storage, opts)
+
+  feed.ready(onready)
+
+  return feed
+
+  function onready() {
+    swarm.join(feed.discoveryKey, { announce: true })
+    swarm.on('connection', onconnection)
+  }
+
+  function onconnection(connection, info) {
+    info.stream.on('error', debug)
+
+    if (feed.length) {
+      strongLink.generate(feed, feed.length - 1, onlink)
+    } else {
+      onlink(null, null)
+    }
+
+    function onlink(err, link) {
+      if (err) {
+        debug(err)
+        feed.emit('error', err)
+        connection.end()
+        return
+      }
+
+      const { byteLength, length } = feed
+      const hello = messages.Hello.encode({ id, link, length, byteLength })
+
+      lpm.write(connection, hello)
+      lpm.read(connection, (res) => {
+        const remoteHello = messages.Hello.decode(res)
+        const dropped = info.deduplicate(id, remoteHello.id)
+
+        if (!dropped) {
+          connection.end()
+          return
+        }
+
+        const stream = feed.replicate(info.client, {
+          download: true,
+          upload: true,
+          live: true
+        })
+
+        pump(stream, connection, stream)
+      })
+    }
+  }
+}
+
 /**
  * @public
  * @param {Object} opts
@@ -245,6 +301,7 @@ function download(storage, opts, callback) {
   const { id = crypto.randomBytes(32) } = opts
   const swarm = hyperswarm()
   const feed = hypercore(createStorage, opts.key, {
+    onwrite: opts.onwrite,
     sparse: true
   })
 
@@ -328,5 +385,6 @@ module.exports = {
   SECRET_BYTES,
 
   download,
+  share,
   seed
 }
