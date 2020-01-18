@@ -17,11 +17,21 @@ var Hello = exports.Hello = {
   decode: null
 }
 
+var Link = exports.Link = {
+  buffer: true,
+  encodingLength: null,
+  encode: null,
+  decode: null
+}
+
 defineHello()
+defineLink()
 
 function defineHello () {
   var enc = [
-    encodings.bytes
+    encodings.bytes,
+    Link,
+    encodings.varint
   ]
 
   Hello.encodingLength = encodingLength
@@ -32,6 +42,19 @@ function defineHello () {
     var length = 0
     if (defined(obj.id)) {
       var len = enc[0].encodingLength(obj.id)
+      length += 1 + len
+    }
+    if (defined(obj.link)) {
+      var len = enc[1].encodingLength(obj.link)
+      length += varint.encodingLength(len)
+      length += 1 + len
+    }
+    if (defined(obj.length)) {
+      var len = enc[2].encodingLength(obj.length)
+      length += 1 + len
+    }
+    if (defined(obj.byteLength)) {
+      var len = enc[2].encodingLength(obj.byteLength)
       length += 1 + len
     }
     return length
@@ -46,6 +69,23 @@ function defineHello () {
       enc[0].encode(obj.id, buf, offset)
       offset += enc[0].encode.bytes
     }
+    if (defined(obj.link)) {
+      buf[offset++] = 18
+      varint.encode(enc[1].encodingLength(obj.link), buf, offset)
+      offset += varint.encode.bytes
+      enc[1].encode(obj.link, buf, offset)
+      offset += enc[1].encode.bytes
+    }
+    if (defined(obj.length)) {
+      buf[offset++] = 24
+      enc[2].encode(obj.length, buf, offset)
+      offset += enc[2].encode.bytes
+    }
+    if (defined(obj.byteLength)) {
+      buf[offset++] = 32
+      enc[2].encode(obj.byteLength, buf, offset)
+      offset += enc[2].encode.bytes
+    }
     encode.bytes = offset - oldOffset
     return buf
   }
@@ -56,7 +96,10 @@ function defineHello () {
     if (!(end <= buf.length && offset <= buf.length)) throw new Error("Decoded message is not valid")
     var oldOffset = offset
     var obj = {
-      id: null
+      id: null,
+      link: null,
+      length: 0,
+      byteLength: 0
     }
     while (true) {
       if (end <= offset) {
@@ -69,6 +112,108 @@ function defineHello () {
       switch (tag) {
         case 1:
         obj.id = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        case 2:
+        var len = varint.decode(buf, offset)
+        offset += varint.decode.bytes
+        obj.link = enc[1].decode(buf, offset, offset + len)
+        offset += enc[1].decode.bytes
+        break
+        case 3:
+        obj.length = enc[2].decode(buf, offset)
+        offset += enc[2].decode.bytes
+        break
+        case 4:
+        obj.byteLength = enc[2].decode(buf, offset)
+        offset += enc[2].decode.bytes
+        break
+        default:
+        offset = skip(prefix & 7, buf, offset)
+      }
+    }
+  }
+}
+
+function defineLink () {
+  var enc = [
+    encodings.bytes,
+    encodings.varint
+  ]
+
+  Link.encodingLength = encodingLength
+  Link.encode = encode
+  Link.decode = decode
+
+  function encodingLength (obj) {
+    var length = 0
+    if (defined(obj.feed)) {
+      var len = enc[0].encodingLength(obj.feed)
+      length += 1 + len
+    }
+    if (defined(obj.seq)) {
+      var len = enc[1].encodingLength(obj.seq)
+      length += 1 + len
+    }
+    if (defined(obj.treeHash)) {
+      var len = enc[0].encodingLength(obj.treeHash)
+      length += 1 + len
+    }
+    return length
+  }
+
+  function encode (obj, buf, offset) {
+    if (!offset) offset = 0
+    if (!buf) buf = Buffer.allocUnsafe(encodingLength(obj))
+    var oldOffset = offset
+    if (defined(obj.feed)) {
+      buf[offset++] = 10
+      enc[0].encode(obj.feed, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    if (defined(obj.seq)) {
+      buf[offset++] = 16
+      enc[1].encode(obj.seq, buf, offset)
+      offset += enc[1].encode.bytes
+    }
+    if (defined(obj.treeHash)) {
+      buf[offset++] = 26
+      enc[0].encode(obj.treeHash, buf, offset)
+      offset += enc[0].encode.bytes
+    }
+    encode.bytes = offset - oldOffset
+    return buf
+  }
+
+  function decode (buf, offset, end) {
+    if (!offset) offset = 0
+    if (!end) end = buf.length
+    if (!(end <= buf.length && offset <= buf.length)) throw new Error("Decoded message is not valid")
+    var oldOffset = offset
+    var obj = {
+      feed: null,
+      seq: 0,
+      treeHash: null
+    }
+    while (true) {
+      if (end <= offset) {
+        decode.bytes = offset - oldOffset
+        return obj
+      }
+      var prefix = varint.decode(buf, offset)
+      offset += varint.decode.bytes
+      var tag = prefix >> 3
+      switch (tag) {
+        case 1:
+        obj.feed = enc[0].decode(buf, offset)
+        offset += enc[0].decode.bytes
+        break
+        case 2:
+        obj.seq = enc[1].decode(buf, offset)
+        offset += enc[1].decode.bytes
+        break
+        case 3:
+        obj.treeHash = enc[0].decode(buf, offset)
         offset += enc[0].decode.bytes
         break
         default:

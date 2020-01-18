@@ -1,6 +1,8 @@
+const strongLink = require('hypercore-strong-link')
 const hyperswarm = require('./hyperswarm')
 const hypercore = require('hypercore')
 const messages = require('./messages')
+const request = require('hypercore-block-request')
 const assert = require('assert')
 const crypto = require('crypto')
 const debug = require('debug')('fileswarm')
@@ -131,8 +133,9 @@ function seed(pathspec, storage, opts, callback) {
       onerror(err)
     } else if (false !== opts.channel && opts.onwrite) {
       channel = hypercore(storage, source.key, {
+        secretKey: source.secretKey,
         onwrite: opts.onwrite,
-        secretKey: source.secretKey
+        sparse: true
       })
 
       channel.ready(() => {
@@ -170,25 +173,41 @@ function seed(pathspec, storage, opts, callback) {
   function onconnection(connection, info) {
     info.stream.on('error', debug)
 
-    const hello = messages.Hello.encode({ id })
+    if (false !== opts.channel && opts.onwrite && channel) {
+      strongLink.generate(channel, channel.length - 1, onlink)
+    } else {
+      strongLink.generate(source, source.length - 1, onlink)
+    }
 
-    lpm.write(connection, hello)
-    lpm.read(connection, (res) => {
-      const remoteHello = messages.Hello.decode(res)
-      const dropped = info.deduplicate(id, remoteHello.id)
-      if (!dropped) {
-        if (false !== opts.channel && opts.onwrite && !channel) {
-          connection.end()
-          return
-        }
-
-        const stream = false !== opts.channel && opts.onwrite
-          ? channel.replicate(info.client, { upload: true, download: false })
-          : source.replicate(info.client, { upload: true, download: false })
-
-        pump(stream, connection, stream)
+    function onlink(err, link) {
+      if (err) {
+        debug(err)
+        source.emit('error', err)
+        connection.end()
+        return
       }
-    })
+
+      const { byteLength, length } = channel
+      const hello = messages.Hello.encode({ id, link, length, byteLength })
+
+      lpm.write(connection, hello)
+      lpm.read(connection, (res) => {
+        const remoteHello = messages.Hello.decode(res)
+        const dropped = info.deduplicate(id, remoteHello.id)
+        if (!dropped) {
+          if (false !== opts.channel && opts.onwrite && !channel) {
+            connection.end()
+            return
+          }
+
+          const stream = false !== opts.channel && opts.onwrite
+            ? channel.replicate(info.client, { upload: true, download: false })
+            : source.replicate(info.client, { upload: true, download: false })
+
+          pump(stream, connection, stream)
+        }
+      })
+    }
   }
 }
 
@@ -223,9 +242,11 @@ function download(storage, opts, callback) {
     opts.onwrite = hook(opts.nonces, opts.secret)
   }
 
-  const swarm = hyperswarm()
-  const feed = hypercore(createStorage, opts.key, opts)
   const { id = crypto.randomBytes(32) } = opts
+  const swarm = hyperswarm()
+  const feed = hypercore(createStorage, opts.key, {
+    sparse: true
+  })
 
   swarm.on('connection', onconnection)
 
@@ -275,13 +296,26 @@ function download(storage, opts, callback) {
     lpm.read(connection, (res) => {
       const remoteHello = messages.Hello.decode(res)
       const dropped = info.deduplicate(id, remoteHello.id)
-      if (!dropped) {
+      if (!dropped && remoteHello.id && remoteHello.link && remoteHello.length) {
         const stream = feed.replicate(info.client, {
           download: true,
-          upload: false
+          upload: false,
+          live: true
         })
 
         pump(connection, stream, connection)
+
+        strongLink.verify(feed, remoteHello.link, (err, data) => {
+          if (err) {
+            debug(err)
+            source.emit('error', err)
+            connection.end()
+          } else {
+            request(feed)
+          }
+        })
+      } else {
+        connection.end()
       }
     })
   }

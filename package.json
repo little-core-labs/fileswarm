@@ -19,7 +19,9 @@
   "dependencies": {
     "debug": "^4.1.1",
     "hypercore": "^8.4.1",
+    "hypercore-block-request": "^0.2.0",
     "hypercore-indexed-file": "^0.1.3",
+    "hypercore-strong-link": "^2.0.0",
     "hypercore-xsalsa20-onwrite-hook": "^1.0.2",
     "hyperswarm": "^2.4.0",
     "hyperswarm-web": "^1.0.1",

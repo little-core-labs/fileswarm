@@ -2,4 +2,13 @@ syntax = "proto3";
 
 message Hello {
   bytes id = 1;
+  Link link = 2;
+  uint32 length = 3;
+  uint32 byteLength = 4;
+}
+
+message Link {
+  bytes feed = 1;
+  uint32 seq = 2;
+  bytes treeHash = 3;
 }
