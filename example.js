@@ -1,5 +1,4 @@
 const fileswarm = require('./')
-const collect = require('collect-stream')
 const crypto = require('crypto')
 const ram = require('random-access-memory')
 const fs = require('fs')
@@ -17,13 +16,9 @@ let spy = null
 
 function onseed(err) {
   if (err) { throw err }
-  collect(origin.channel.createReadStream(), (err, buffer) => {
-    if (err) { throw err }
-
-    const { key } = origin
-    auth = fileswarm.download(authFile, { nonces, secret, key }, ondownload)
-    spy = fileswarm.download(spyFile, { key }, ondownload)
-  })
+  const { key } = origin
+  auth = fileswarm.download(authFile, { nonces, secret, key }, ondownload)
+  spy = fileswarm.download(spyFile, { key }, ondownload)
 }
 
 function ondownload(err) {

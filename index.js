@@ -163,6 +163,11 @@ function seed(pathspec, storage, opts, callback) {
       const remoteHello = messages.Hello.decode(res)
       const dropped = info.deduplicate(id, remoteHello.id)
       if (!dropped) {
+        if (false !== opts.channel && opts.onwrite && !channel) {
+          connection.end()
+          return
+        }
+
         const stream = false !== opts.channel && opts.onwrite
           ? channel.replicate(info.client)
           : source.replicate(info.client)
