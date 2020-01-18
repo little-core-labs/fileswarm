@@ -55,13 +55,14 @@ const fileswarm = require('fileswarm')
 const crypto = require('crypto')
 const path = require('path')
 const raf = require('random-access-file')
+const ram = require('random-access-memory')
 const fs = require('fs')
 
-const pathspec = 'https://example.com/video.mp4'
+const pathspec = 'http://humanstxt.org/humans.txt'
 const filename = path.basename(pathspec)
 const nonces = raf(filename + '.nonces')
 const secret = crypto.randomBytes(32) // share this
-const seed = fileswarm.seed(pathspec, { secret }, onseed)
+const seed = fileswarm.seed(pathspec, ram, { nonces, secret }, onseed)
 
 function onseed(err) {
   if (err) throw err
