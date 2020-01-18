@@ -183,8 +183,8 @@ function seed(pathspec, storage, opts, callback) {
         }
 
         const stream = false !== opts.channel && opts.onwrite
-          ? channel.replicate(info.client)
-          : source.replicate(info.client)
+          ? channel.replicate(info.client, { upload: true, download: false })
+          : source.replicate(info.client, { upload: true, download: false })
 
         pump(stream, connection, stream)
       }
@@ -276,7 +276,12 @@ function download(storage, opts, callback) {
       const remoteHello = messages.Hello.decode(res)
       const dropped = info.deduplicate(id, remoteHello.id)
       if (!dropped) {
-        pump(connection, feed.replicate(info.client), connection)
+        const stream = feed.replicate(info.client, {
+          download: true,
+          upload: false
+        })
+
+        pump(connection, stream, connection)
       }
     })
   }
