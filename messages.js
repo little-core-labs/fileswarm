@@ -31,7 +31,8 @@ function defineHello () {
   var enc = [
     encodings.bytes,
     Link,
-    encodings.varint
+    encodings.varint,
+    encodings.string
   ]
 
   Hello.encodingLength = encodingLength
@@ -55,6 +56,14 @@ function defineHello () {
     }
     if (defined(obj.byteLength)) {
       var len = enc[2].encodingLength(obj.byteLength)
+      length += 1 + len
+    }
+    if (defined(obj.filename)) {
+      var len = enc[3].encodingLength(obj.filename)
+      length += 1 + len
+    }
+    if (defined(obj.pathspec)) {
+      var len = enc[3].encodingLength(obj.pathspec)
       length += 1 + len
     }
     return length
@@ -86,6 +95,16 @@ function defineHello () {
       enc[2].encode(obj.byteLength, buf, offset)
       offset += enc[2].encode.bytes
     }
+    if (defined(obj.filename)) {
+      buf[offset++] = 82
+      enc[3].encode(obj.filename, buf, offset)
+      offset += enc[3].encode.bytes
+    }
+    if (defined(obj.pathspec)) {
+      buf[offset++] = 90
+      enc[3].encode(obj.pathspec, buf, offset)
+      offset += enc[3].encode.bytes
+    }
     encode.bytes = offset - oldOffset
     return buf
   }
@@ -99,7 +118,9 @@ function defineHello () {
       id: null,
       link: null,
       length: 0,
-      byteLength: 0
+      byteLength: 0,
+      filename: "",
+      pathspec: ""
     }
     while (true) {
       if (end <= offset) {
@@ -127,6 +148,14 @@ function defineHello () {
         case 4:
         obj.byteLength = enc[2].decode(buf, offset)
         offset += enc[2].decode.bytes
+        break
+        case 10:
+        obj.filename = enc[3].decode(buf, offset)
+        offset += enc[3].decode.bytes
+        break
+        case 11:
+        obj.pathspec = enc[3].decode(buf, offset)
+        offset += enc[3].decode.bytes
         break
         default:
         offset = skip(prefix & 7, buf, offset)

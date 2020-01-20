@@ -4,14 +4,34 @@ const hypercore = require('hypercore')
 const messages = require('./messages')
 const request = require('hypercore-block-request')
 const assert = require('assert')
-const crypto = require('crypto')
+const crypto = require('hypercore-crypto')
 const debug = require('debug')('fileswarm')
 const pump = require('pump')
 const hook = require('hypercore-xsalsa20-onwrite-hook')
 const from = require('random-access-storage-from')
 const file = require('hypercore-indexed-file')
+const path = require('path')
 const lpm = require('length-prefixed-message')
 const ram = require('random-access-memory')
+
+/**
+ * The `Stats` class represents a container for seed information
+ * like the size of the feed in bytes or how many blocks are in it.
+ * @private
+ * @class
+ */
+class Stats {
+
+  /**
+   * `Stats` class constructor.
+   * @param {Object} hello
+   */
+  constructor(hello) {
+    this.size = hello.byteLength
+    this.blocks = hello.length
+    this.filename = hello.filename
+  }
+}
 
 /**
  * Size in bytes of the expected buffer size for the shared
@@ -187,7 +207,15 @@ function seed(pathspec, storage, opts, callback) {
       }
 
       const { byteLength, length } = channel
-      const hello = messages.Hello.encode({ id, link, length, byteLength })
+      const filename = path.basename(pathspec)
+      const hello = messages.Hello.encode({
+        id,
+        link,
+        length,
+        byteLength,
+        filename,
+        pathspec
+      })
 
       lpm.write(connection, hello)
       lpm.read(connection, (res) => {
@@ -210,10 +238,31 @@ function seed(pathspec, storage, opts, callback) {
   }
 }
 
-function share(storage, opts) {
+/**
+ * Share a seeded feed.
+ * @public
+ * @param {String|Buffer} key
+ * @param {String|Function<RandomAccessStorage>} storage
+ * @param {Object} opts
+ */
+function share(storage, key, opts) {
+  assert('function' === typeof storage || 'string' === typeof storage,
+    'Expecting storage to be a string or a factory a function.')
+
+  if (key && 'object' === typeof key && !Buffer.isBuffer(key)) {
+    opts = key
+    key = opts.key || null
+  }
+
+  opts = Object.assign(opts, {}) // copy
+
   const { id = crypto.randomBytes(32) } = opts
   const swarm = hyperswarm()
-  const feed = hypercore(storage, opts)
+  const feed = hypercore(storage, key, opts)
+
+  // discovered on first hello
+  let pathspec = null
+  let filename = null
 
   feed.ready(onready)
 
@@ -242,7 +291,14 @@ function share(storage, opts) {
       }
 
       const { byteLength, length } = feed
-      const hello = messages.Hello.encode({ id, link, length, byteLength })
+      const hello = messages.Hello.encode({
+        id,
+        link,
+        length,
+        byteLength,
+        filename,
+        pathspec
+      })
 
       lpm.write(connection, hello)
       lpm.read(connection, (res) => {
@@ -252,6 +308,14 @@ function share(storage, opts) {
         if (!dropped) {
           connection.end()
           return
+        }
+
+        if (remoteHello.filename) {
+          filename = remoteHello.filename
+        }
+
+        if (remoteHello.pathspec) {
+          pathspec = remoteHello.pathspec
         }
 
         const stream = feed.replicate(info.client, {
@@ -267,6 +331,7 @@ function share(storage, opts) {
 }
 
 /**
+ * Download a seeded/shared feed into a specified storage.
  * @public
  * @param {Object} opts
  * @param {?(String|Buffer)} opts.secret
@@ -378,6 +443,46 @@ function download(storage, opts, callback) {
 }
 
 /**
+ * Query for stats about a seeded/shared feed specified by a
+ * Hypercore key.
+ * @public
+ * @param {String|Buffer} key
+ * @param {Function} callback
+ */
+function stat(key, callback) {
+  assert('string' === typeof key || (Buffer.isBuffer(key) && 32 === key.length),
+    'Expecting key to be a string or buffer.')
+
+  assert('function' === typeof callback,
+    'Expecting callback to be a function.')
+
+  const discoveryKey = crypto.discoveryKey(Buffer.from(key, 'kex'))
+  const swarm = hyperswarm()
+  const id = crypto.randomBytes(32)
+
+  swarm.join(discoveryKey, {
+    announce: false,
+    lookup: true
+  })
+
+  swarm.on('connection', onconnection)
+
+  function onconnection(connection, info) {
+    lpm.read(connection, (res) => {
+      try {
+        const remoteHello = messages.Hello.decode(res)
+        const stats = new Stats(remoteHello)
+        swarm.removeListener('connection', onconnection)
+        swarm.destroy()
+        callback(null, stats)
+      } catch (err) {
+        callback(err)
+      }
+    })
+  }
+}
+
+/**
  * Module exports.
  */
 module.exports = {
@@ -385,5 +490,6 @@ module.exports = {
 
   download,
   share,
-  seed
+  seed,
+  stat
 }

@@ -5,6 +5,8 @@ message Hello {
   Link link = 2;
   uint32 length = 3;
   uint32 byteLength = 4;
+  string filename = 10;
+  string pathspec = 11;
 }
 
 message Link {

@@ -93,11 +93,16 @@ const key = loadKey() // comes from anywhere, but is the same as above
 const feed = fileswarm.download('./humans.txt', { key, secret, nonces }, ondownload)
 
 function ondownload() {
+  // TODO
 }
 
 ```
 
 ### `feed = fileswarm.share(storage[, opts])`
+
+> TODO
+
+### `fileswarm.stat(key, callback)`
 
 > TODO
 
