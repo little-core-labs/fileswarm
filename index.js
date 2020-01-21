@@ -5,6 +5,7 @@ const messages = require('./messages')
 const request = require('hypercore-block-request')
 const assert = require('assert')
 const crypto = require('hypercore-crypto')
+const Batch = require('batch')
 const debug = require('debug')('fileswarm')
 const pump = require('pump')
 const hook = require('hypercore-xsalsa20-onwrite-hook')
@@ -353,6 +354,10 @@ function download(storage, opts, callback) {
       opts.secret = Buffer.from(opts.secret, 'hex')
     }
 
+    if ('string' === typeof opts.nonces) {
+      opts.nonces = from(opts.nonces)
+    }
+
     assert(opts.nonces && 'object' === typeof opts.nonces,
       'Expecting `opts.nonces` to be a RandomAccessStorage object.')
 
@@ -402,10 +407,6 @@ function download(storage, opts, callback) {
     if ('function' === typeof callback) {
       if (feed.length && feed.length === feed.downloaded()) {
         callback(null)
-      } else {
-        feed.once('sync', () => {
-          callback(null)
-        })
       }
     }
   }
@@ -433,7 +434,26 @@ function download(storage, opts, callback) {
             source.emit('error', err)
             connection.end()
           } else {
-            request(feed)
+            const downloaded = new Set()
+            const ondownload = (i) => downloaded.add(i)
+
+            feed.on('download', ondownload)
+
+            request(feed, { start: 0, linear: false, end: feed.length }, (err) => {
+              if (err) { return callback(err) }
+
+              const missing = new Batch()
+
+              // "get" missing blocks
+              for (let i = 0; i < feed.length; ++i) {
+                if (false === downloaded.has(i)) {
+                  missing.push((next) => feed.get(i, (err) => next(err)))
+                }
+              }
+
+              feed.removeListener('download', ondownload)
+              missing.end(callback)
+            })
           }
         })
       } else {
@@ -457,7 +477,7 @@ function stat(key, callback) {
   assert('function' === typeof callback,
     'Expecting callback to be a function.')
 
-  const discoveryKey = crypto.discoveryKey(Buffer.from(key, 'kex'))
+  const discoveryKey = crypto.discoveryKey(Buffer.from(key, 'hex'))
   const swarm = hyperswarm()
   const id = crypto.randomBytes(32)
 
