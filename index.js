@@ -27,6 +27,7 @@ class Stats {
    * @param {Object} hello
    */
   constructor(hello) {
+    this.key = hello.link && hello.link.feed
     this.size = hello.byteLength
     this.blocks = hello.length
     this.filename = hello.filename
