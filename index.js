@@ -149,11 +149,19 @@ function seed(pathspec, storage, opts, callback) {
     swarm.destroy()
   }
 
+  function createHypercore(...args) {
+    if ('function' === typeof opts.hypercore) {
+      return opts.hypercore(...args)
+    } else {
+      return hypercore(...args)
+    }
+  }
+
   function onindexed(err) {
     if (err) {
       onerror(err)
     } else if (false !== opts.channel && opts.onwrite) {
-      channel = hypercore(storage, source.key, {
+      channel = createHypercore(storage, source.key, {
         secretKey: source.secretKey,
         onwrite: opts.onwrite,
         sparse: true
@@ -260,7 +268,7 @@ function share(storage, key, opts) {
 
   const { id = crypto.randomBytes(32) } = opts
   const swarm = hyperswarm()
-  const feed = hypercore(storage, key, opts)
+  const feed = createHypercore(storage, key, opts)
 
   // discovered on first hello
   let pathspec = null
@@ -269,6 +277,14 @@ function share(storage, key, opts) {
   feed.ready(onready)
 
   return feed
+
+  function createHypercore(...args) {
+    if ('function' === typeof opts.hypercore) {
+      return opts.hypercore(...args)
+    } else {
+      return hypercore(...args)
+    }
+  }
 
   function onready() {
     swarm.join(feed.discoveryKey, { announce: true })
@@ -370,7 +386,7 @@ function download(storage, opts, callback) {
 
   const { id = crypto.randomBytes(32) } = opts
   const swarm = hyperswarm()
-  const feed = hypercore(createStorage, opts.key, {
+  const feed = createHypercore(createStorage, opts.key, {
     onwrite: opts.onwrite,
     sparse: true
   })
@@ -381,6 +397,14 @@ function download(storage, opts, callback) {
   feed.on('close', onclose)
 
   return feed
+
+  function createHypercore(...args) {
+    if ('function' === typeof opts.hypercore) {
+      return opts.hypercore(...args)
+    } else {
+      return hypercore(...args)
+    }
+  }
 
   function createStorage(filename) {
     if ('data' === filename) {
