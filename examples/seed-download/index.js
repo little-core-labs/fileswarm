@@ -3,9 +3,8 @@ const crypto = require('crypto')
 const ram = require('random-access-memory')
 const fs = require('fs')
 
-const nonces = ram()
 const secret = crypto.randomBytes(fileswarm.SECRET_BYTES)
-const origin = fileswarm.seed(__filename, ram, { nonces, secret }, onseed)
+const origin = fileswarm.seed(__filename, ram, { secret }, onseed)
 
 const authFile = './copy.js'
 const spyFile ='./spied.js'
@@ -17,7 +16,7 @@ let spy = null
 function onseed(err) {
   if (err) { throw err }
   const { key } = origin
-  auth = fileswarm.download(authFile, { nonces, secret, key }, ondownload)
+  auth = fileswarm.download(authFile, { secret, key }, ondownload)
   spy = fileswarm.download(spyFile, { key }, ondownload)
 }
 

@@ -43,22 +43,12 @@ class Stats {
 const SECRET_BYTES = 32
 
 /**
- * Seed file at `pathspec` where `pathspec` can be a local file path or a
- * HTTP URL. The underlying [hypercore][hypercore] `storage` must be
- * specified as the enciphered file at `pathspec` is stored there and
- * replicated in the [network swarm][hyperswarm]. If a shared secret is
- * given then the data stored in the underlying feed is encrypted. Readers
- * must be given access to the shared secret as well as a
- * [random-access-storage][ras] instance containing the nonces created by
- * the seeder. When indexing and seeding is complete, `callback()` will be
- * called. `callback(err)` is also called when an error occurs.
- *
+ * TODO
  * @public
  * @param {String} pathspec
  * @param {Function<RandomAccessStorage>|String} storage
  * @param {?(Object)} opts
  * @param {?(String|Buffer)} opts.secret
- * @param {?(RandomAccessStorage)} opts.nonces
  * @param {?(Boolean)} [opts.channel = true]
  * @param {?(Function)} callback
  * @return {Hypercore}
@@ -78,17 +68,10 @@ function seed(pathspec, storage, opts, callback) {
   opts = Object.assign({}, opts) // copy
 
   if (!opts.onwrite && opts.secret) {
-    if (!opts.nonces) {
-      opts.nonces = ram()
-    }
-
     // convert string secret to buffer, assuming 'hex' encoding
     if ('string' === typeof opts.secret) {
       opts.secret = Buffer.from(opts.secret, 'hex')
     }
-
-    assert(opts.nonces && 'object' === typeof opts.nonces,
-      'Expecting `opts.nonces` to be a RandomAccessStorage object.')
 
     if (!opts.secret) {
       opts.secret = crypto.randomBytes(SECRET_BYTES)
@@ -98,10 +81,10 @@ function seed(pathspec, storage, opts, callback) {
         'Expecting `opts.secret` to be a 32 byte buffer.')
     }
 
-    opts.onwrite = hook(opts.nonces, opts.secret)
+    opts.onwrite = hook(opts.secret)
   }
 
-  const { nonces = null, secret = null } = opts
+  const { secret = null } = opts
   const { highWaterMark } = opts
   const { id = crypto.randomBytes(32) } = opts
 
@@ -116,8 +99,9 @@ function seed(pathspec, storage, opts, callback) {
   source.on('close', onclose)
 
   return Object.defineProperties(source, Object.getOwnPropertyDescriptors({
-    nonces,
-    secret,
+    get secret() {
+      return secret
+    }
 
     get pathspec() {
       return pathspec
@@ -353,7 +337,6 @@ function share(storage, key, opts) {
  * @public
  * @param {Object} opts
  * @param {?(String|Buffer)} opts.secret
- * @param {?(RandomAccessStorage)} opts.nonces
  * @param {?(Boolean)} opts.truncate
  * @return {Hypercore}
  */
@@ -361,27 +344,16 @@ function download(storage, opts, callback) {
   opts = Object.assign({}, opts) // copy
 
   if (!opts.onwrite && opts.secret) {
-    if (!opts.nonces) {
-      opts.nonces = ram()
-    }
-
     // convert string secret to buffer, assuming 'hex' encoding
     if ('string' === typeof opts.secret) {
       opts.secret = Buffer.from(opts.secret, 'hex')
     }
 
-    if ('string' === typeof opts.nonces) {
-      opts.nonces = from(opts.nonces)
-    }
-
-    assert(opts.nonces && 'object' === typeof opts.nonces,
-      'Expecting `opts.nonces` to be a RandomAccessStorage object.')
-
     const { secret } = opts
     assert(Buffer.isBuffer(secret) && SECRET_BYTES === secret.length,
       'Expecting `opts.secret` to be a 32 byte buffer.')
 
-    opts.onwrite = hook(opts.nonces, opts.secret)
+    opts.onwrite = hook(opts.secret)
   }
 
   const { id = crypto.randomBytes(32) } = opts
