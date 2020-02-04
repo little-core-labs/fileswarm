@@ -101,7 +101,7 @@ function seed(pathspec, storage, opts, callback) {
   return Object.defineProperties(source, Object.getOwnPropertyDescriptors({
     get secret() {
       return secret
-    }
+    },
 
     get pathspec() {
       return pathspec
